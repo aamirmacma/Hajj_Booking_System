@@ -37,20 +37,20 @@ def get_yes_no_table(selected_val):
 # --- 1. PREMIUM PDF GENERATION FUNCTION ---
 def create_pdf(fd):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=20)
+    # Margins slightly adjusted
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=20)
     elements = []
     styles = getSampleStyleSheet()
     
-    # 🔴 FIX: Added 'leading' and 'spaceAfter' to create perfect gap between titles
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
         fontSize=24,
-        leading=28, # Line height ko barha diya gaya hai overlap rokne ke liye
+        leading=28,
         textColor=colors.HexColor("#002060"), 
         alignment=TA_CENTER,
-        spaceAfter=12 # Niche wale text se gap
+        spaceAfter=12
     )
     subtitle_style = ParagraphStyle(
         'CustomSubTitle',
@@ -63,13 +63,15 @@ def create_pdf(fd):
         spaceAfter=15
     )
     
-    # Photo Box Handling
+    # --- 🔴 FIX 1: PHOTO ADJUSTMENT ---
+    # Photo ka size barha diya gaya hai taake box mein pora fit ho.
     img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
     if fd.get('photo'):
         try:
             img_bytes = fd['photo'].getvalue()
             img_io = io.BytesIO(img_bytes)
-            img = RLImage(img_io, width=115, height=140)
+            # Width aur Height ko adjust kiya gaya hai box fill karne ke liye
+            img = RLImage(img_io, width=128, height=158) 
         except Exception as e:
             pass
 
@@ -114,7 +116,11 @@ def create_pdf(fd):
         ["REFERENCE", fd['reference'].upper(), "", ""]
     ]
 
-    col_widths = [155, 135, 115, 140] 
+    # --- 🔴 FIX 2: COLUMN WIDTH ADJUSTMENT ---
+    # 3rd column (TITLE & GIVEN NAME) ki width 115 se barha kar 135 kar di gayi hai.
+    # Baaki columns ko thora adjust kiya hai taake total width same rahe.
+    # Old: [155, 135, 115, 140]
+    col_widths = [150, 130, 135, 130] 
     table = Table(data, colWidths=col_widths)
     
     border_color = colors.HexColor("#002060") 
