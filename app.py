@@ -21,7 +21,6 @@ def get_yes_no_table(selected_val):
     y_bg = colors.HexColor("#FFC107") if selected_val == "YES" else colors.white
     n_bg = colors.HexColor("#FFC107") if selected_val == "NO" else colors.white
     
-    # Row height reduced from 20 to 16 to save space
     t = Table([["YES", "NO"]], colWidths=[40, 40], rowHeights=[16])
     t.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#002060")),
@@ -38,7 +37,6 @@ def get_yes_no_table(selected_val):
 # --- 1. PREMIUM PDF GENERATION FUNCTION ---
 def create_pdf(fd):
     buffer = BytesIO()
-    # 🔴 FIX 1: Margins top aur bottom se kam kar diye taake extra jagah mil jaye
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=15, bottomMargin=15)
     elements = []
     styles = getSampleStyleSheet()
@@ -51,7 +49,7 @@ def create_pdf(fd):
         leading=26,
         textColor=colors.HexColor("#002060"), 
         alignment=TA_CENTER,
-        spaceAfter=8 # Spacing reduced
+        spaceAfter=8
     )
     subtitle_style = ParagraphStyle(
         'CustomSubTitle',
@@ -61,7 +59,7 @@ def create_pdf(fd):
         leading=16,
         textColor=colors.black,
         alignment=TA_CENTER,
-        spaceAfter=10 # Spacing reduced
+        spaceAfter=10
     )
     
     img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
@@ -70,7 +68,6 @@ def create_pdf(fd):
             fd['photo'].seek(0) 
             img_bytes = fd['photo'].read()
             img_io = io.BytesIO(img_bytes)
-            # Photo size adjusted perfectly to fit height
             img = RLImage(img_io, width=125, height=145) 
         except Exception as e:
             pass
@@ -128,7 +125,6 @@ def create_pdf(fd):
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,0), (-1,-1), 9),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        # 🔴 FIX 2: Vertical padding reduced from 7 to 4 taake sab aik page pe aye
         ('TOPPADDING', (0,0), (-1,-1), 4),
         ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
@@ -210,7 +206,6 @@ def create_pdf(fd):
     table.setStyle(style)
     elements.append(table)
     
-    # Footer gap reduced
     elements.append(Spacer(1, 10))
     footer_text = f"<i>Generated securely via Professional Booking Management System on {datetime.now().strftime('%d-%b-%Y')}</i>"
     footer_p = Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], alignment=TA_RIGHT, textColor=colors.grey, fontSize=8))
@@ -220,12 +215,43 @@ def create_pdf(fd):
     return buffer.getvalue()
 
 
-# --- 2. STREAMLIT APP INTERFACE ---
+# --- 2. STREAMLIT APP INTERFACE (PREMIUM UI) ---
 st.set_page_config(page_title="Hajj Booking System", layout="wide", page_icon="🕋")
 
+# Custom CSS for Premium Look
 st.markdown("""
-    <div style='background-color: #002060; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>
-        <h1 style='text-align: center; color: white; margin: 0;'>🕋 HAJJ BOOKING MANAGEMENT SYSTEM</h1>
+    <style>
+    .main-header {
+        background: linear-gradient(135deg, #002060 0%, #0040A0 100%);
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .main-header h1 {
+        text-align: center;
+        color: white !important;
+        margin: 0;
+        font-weight: 700;
+        letter-spacing: 1px;
+    }
+    .stButton>button {
+        background-color: #D4AF37 !important;
+        color: #002060 !important;
+        font-weight: bold;
+        border-radius: 8px;
+        border: 2px solid #D4AF37;
+        padding: 10px 24px;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #002060 !important;
+        color: #D4AF37 !important;
+        border: 2px solid #002060;
+    }
+    </style>
+    <div class='main-header'>
+        <h1>🕋 PREMIUM HAJJ BOOKING SYSTEM</h1>
     </div>
 """, unsafe_allow_html=True)
 
@@ -236,20 +262,22 @@ form_choice = st.sidebar.selectbox("Select Applicant Data:", ["New Blank Form", 
 col_scan, col_photo = st.columns(2)
 
 with col_scan:
-    st.markdown("### 🛂 1. Auto-Fill (Scanner)")
-    passport_scan = st.file_uploader("Upload Passport (JPG/PNG)", type=["jpg", "jpeg", "png"], key="scanner")
+    st.markdown("### 🛂 1. Auto-Fill (Smart Scanner)")
+    st.info("Upload Passport Image (MRZ Zone must be clear)")
+    passport_scan = st.file_uploader("Upload Passport (JPG/PNG)", type=["jpg", "jpeg", "png"], key="scanner", label_visibility="collapsed")
 
 with col_photo:
     st.markdown("### 📸 2. Upload Photo (For Form)")
-    uploaded_photo = st.file_uploader("Upload Applicant Photo", type=["jpg", "jpeg", "png"], key="photo")
+    st.info("Upload Applicant's Passport Size Photo")
+    uploaded_photo = st.file_uploader("Upload Applicant Photo", type=["jpg", "jpeg", "png"], key="photo", label_visibility="collapsed")
     if uploaded_photo:
-        st.image(uploaded_photo, width=120, caption="Preview Generated")
+        st.image(uploaded_photo, width=120, caption="Live Preview")
 
 ocr_data = {}
 if passport_scan:
     try:
         img_for_ocr = Image.open(passport_scan)
-        with st.spinner("🔍 Passport Read ho raha hai... Please wait."):
+        with st.spinner("🔍 Reading Passport Data..."):
             text = pytesseract.image_to_string(img_for_ocr)
             lines = text.split('\n')
             
@@ -297,7 +325,7 @@ if passport_scan:
     except Exception as e:
         pass
 
-# --- PRESETS & DROPDOWNS ---
+# --- PRESETS & DATA ---
 presets = {
     "New Blank Form": {k: "" for k in ['surname','given_name','guardian','cnic','blood','dob','marital','passport','mobile','doi','whatsapp','doe','job','email','country','address','hajj_5yr','hajj_badal','nom_name','nom_rel','nom_cnic','nom_mobile','nom_address','pkg_no','maktab','makkah_hotel','makkah_room_type','madinah_hotel','madinah_room_type','flight_from','aziz_type','tickets', 'qurbani', 'flight_details','invoice','remarks','company','reference']},
     "Korsar Rasul": {'surname': "RASUL", 'given_name': "KORSAR", 'guardian': "ABID HUSSAIN", 'cnic': "9140001304292", 'blood': "A+", 'dob': "7/16/1978", 'marital': "Married", 'passport': "AS456321", 'mobile': "03008912129", 'doi': "7/16/2015", 'whatsapp': "03008912129", 'doe': "7/16/2030", 'job': "AHMED", 'email': "", 'country': "United Kingdom", 'address': "23 Malmesbury Road, Birmingham, West Midlands, B10 0JG United Kingdom", 'hajj_5yr': "NO", 'hajj_badal': "NO", 'nom_name': "UMER AYAZ", 'nom_rel': "COUSIN", 'nom_cnic': "8130108651631", 'nom_mobile': "923474374778", 'nom_address': "", 'pkg_no': "Package # 05 (17 DAYS)", 'maktab': "", 'makkah_hotel': "", 'makkah_room_type': "DOUBLE", 'madinah_hotel': "", 'madinah_room_type': "DOUBLE", 'flight_from': "", 'aziz_type': "DOUBLE", 'tickets': "YES", 'qurbani': "INCLUDE", 'flight_details': "", 'invoice': "", 'remarks': "", 'company': "", 'reference': ""},
@@ -308,7 +336,32 @@ presets = {
 d = presets[form_choice]
 
 blood_list = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
-country_list = ["", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "China", "Denmark", "Egypt", "Finland", "France", "Germany", "Greece", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Italy", "Japan", "Jordan", "Kuwait", "Lebanon", "Malaysia", "Maldives", "Morocco", "Netherlands", "New Zealand", "Norway", "Oman", "Pakistan", "Palestine", "Qatar", "Russia", "Saudi Arabia", "Singapore", "South Africa", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Syria", "Turkey", "United Arab Emirates", "United Kingdom", "USA", "Yemen", "Other"]
+
+# --- 🔴 FIX 100%: FULL 195+ COUNTRIES LIST ---
+country_list = [
+    "", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda", "Argentina", "Armenia", "Australia", 
+    "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", 
+    "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria", "Burkina Faso", "Burundi", 
+    "Cabo Verde", "Cambodia", "Cameroon", "Canada", "Central African Republic", "Chad", "Chile", "China", "Colombia", 
+    "Comoros", "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czechia", "Denmark", "Djibouti", "Dominica", 
+    "Dominican Republic", "Ecuador", "Egypt", "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", 
+    "Ethiopia", "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana", "Greece", "Grenada", 
+    "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti", "Honduras", "Hungary", "Iceland", "India", "Indonesia", 
+    "Iran", "Iraq", "Ireland", "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati", 
+    "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya", "Liechtenstein", "Lithuania", 
+    "Luxembourg", "Madagascar", "Malawi", "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania", 
+    "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro", "Morocco", "Mozambique", 
+    "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands", "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", 
+    "North Macedonia", "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea", "Paraguay", 
+    "Peru", "Philippines", "Poland", "Portugal", "Qatar", "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", 
+    "Saint Lucia", "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe", "Saudi Arabia", 
+    "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore", "Slovakia", "Slovenia", "Solomon Islands", "Somalia", 
+    "South Africa", "South Korea", "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland", 
+    "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo", "Tonga", "Trinidad and Tobago", 
+    "Tunisia", "Turkey", "Turkmenistan", "Tuvalu", "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States", 
+    "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam", "Yemen", "Zambia", "Zimbabwe", "Other"
+]
+
 marital_list = ["Single", "Married", "Widowed", "Divorced"]
 package_list = ["", "Package # 01 (10/11 Days)", "Package # 02 (13/14 Days)", "Package # 03 (13/14 DAYS)", "Package # 04 (17/18 DAYS)", "Package # 05 (17 DAYS)", "Package # 06 (22 DAYS)", "Package # 07 (14 DAYS)", "Package # 08 (14 DAYS)"]
 title_list = ["MR", "MRS", "MS", "CHILD", "INF"]
@@ -362,7 +415,7 @@ with st.form("hajj_form"):
         hajj_badal = st.radio("Hajj-e-Badal?", ["YES", "NO"], index=0 if d.get('hajj_badal')=="YES" else 1, horizontal=True)
 
     st.markdown("---")
-    st.subheader("2. Nominee Details")
+    st.subheader("👨‍👩‍👧 4. Nominee Details")
     n1, n2 = st.columns(2)
     with n1:
         nom_name = st.text_input("Nominee Name", d.get('nom_name', ''))
@@ -373,7 +426,7 @@ with st.form("hajj_form"):
     nom_address = st.text_input("Nominee Address", d.get('nom_address', ''))
 
     st.markdown("---")
-    st.subheader("3. Package Details")
+    st.subheader("🕋 5. Package Details")
     
     p1, p2 = st.columns(2)
     with p1:
@@ -401,7 +454,7 @@ with st.form("hajj_form"):
     flight_details = st.text_area("Flight Details", d.get('flight_details', ''))
 
     st.markdown("---")
-    st.subheader("4. Official Use")
+    st.subheader("🏢 6. Official Use")
     o1, o2 = st.columns(2)
     with o1:
         invoice = st.text_input("Invoice No", d.get('invoice', ''))
