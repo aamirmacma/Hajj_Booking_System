@@ -18,7 +18,7 @@ from io import BytesIO
 AGENCY_EMAIL = "aamirmacma@gmail.com"  
 
 # ⚠️ Yahan apna 16-digit App Password lazmi dalen taake email properly send ho!
-AGENCY_APP_PASSWORD = "aamirmacma123456" 
+AGENCY_APP_PASSWORD = "asdfghjklqwzxcvb" 
 # ==========================================
 
 
@@ -471,4 +471,5 @@ if submitted:
         file_name=f"Hajj_Form_{surname}_{given_name}.pdf",
         mime="application/pdf"
     )
+
 
