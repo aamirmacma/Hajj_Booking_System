@@ -18,7 +18,6 @@ except ImportError:
 
 # --- HELPER FUNCTION: MODERN YES/NO BOXES ---
 def get_yes_no_table(selected_val):
-    # Professional Gold Highlight for selections
     y_bg = colors.HexColor("#FFC107") if selected_val == "YES" else colors.white
     n_bg = colors.HexColor("#FFC107") if selected_val == "NO" else colors.white
     
@@ -42,27 +41,29 @@ def create_pdf(fd):
     elements = []
     styles = getSampleStyleSheet()
     
-    # Custom Styles for Premium Look
+    # 🔴 FIX: Added 'leading' and 'spaceAfter' to create perfect gap between titles
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
-        fontSize=26,
-        textColor=colors.HexColor("#002060"), # Royal Blue Title
+        fontSize=24,
+        leading=28, # Line height ko barha diya gaya hai overlap rokne ke liye
+        textColor=colors.HexColor("#002060"), 
         alignment=TA_CENTER,
-        spaceAfter=5
+        spaceAfter=12 # Niche wale text se gap
     )
     subtitle_style = ParagraphStyle(
         'CustomSubTitle',
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
         fontSize=14,
+        leading=16,
         textColor=colors.black,
         alignment=TA_CENTER,
         spaceAfter=15
     )
     
-    # Photo Box Handling (Clean Dashed look)
+    # Photo Box Handling
     img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
     if fd.get('photo'):
         try:
@@ -75,7 +76,6 @@ def create_pdf(fd):
     title_p = Paragraph("HAJJ BOOKING FORM", title_style)
     subtitle_p = Paragraph("HAJJ 2026 - 1447 A.H", subtitle_style)
     
-    # Combine Title for row 0
     header_content = [title_p, subtitle_p]
 
     full_name = f"{fd['app_title']}. {fd['given_name']}" if fd['app_title'] else fd['given_name']
@@ -117,14 +117,12 @@ def create_pdf(fd):
     col_widths = [155, 135, 115, 140] 
     table = Table(data, colWidths=col_widths)
     
-    # Premium Color Palette
-    border_color = colors.HexColor("#002060") # Royal Blue Borders
-    header_bg = colors.HexColor("#002060")    # Royal Blue Headers
-    label_bg = colors.HexColor("#F0F2F6")     # Soft Modern Grey for labels
-    official_bg = colors.HexColor("#D4AF37")  # Premium Gold for Official Use
+    border_color = colors.HexColor("#002060") 
+    header_bg = colors.HexColor("#002060")    
+    label_bg = colors.HexColor("#F0F2F6")     
+    official_bg = colors.HexColor("#D4AF37")  
     
     style = TableStyle([
-        # Main Grid Design
         ('GRID', (0,0), (-1,-1), 1, border_color),
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,0), (-1,-1), 9),
@@ -134,21 +132,17 @@ def create_pdf(fd):
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
         
-        # Outer Thick Box for Premium feel
         ('BOX', (0,0), (-1,-1), 2, border_color),
         
-        # Title Row Spans
         ('SPAN', (0,0), (2,0)),
         ('ALIGN', (0,0), (2,0), 'CENTER'),
         ('VALIGN', (0,0), (2,0), 'MIDDLE'),
         
-        # Photo Spans
         ('SPAN', (3,0), (3,3)), 
         ('ALIGN', (3,0), (3,3), 'CENTER'),
         ('VALIGN', (3,0), (3,3), 'MIDDLE'),
         ('BACKGROUND', (3,0), (3,3), colors.whitesmoke), 
 
-        # Sub-Headers (Applicant, Nominee, Package, Official)
         ('SPAN', (0,1), (2,1)), 
         ('BACKGROUND', (0,1), (2,1), header_bg),
         ('TEXTCOLOR', (0,1), (2,1), colors.white),
@@ -177,17 +171,15 @@ def create_pdf(fd):
         ('FONTNAME', (0,23), (3,23), 'Helvetica-Bold'),
         ('FONTSIZE', (0,23), (3,23), 10),
 
-        # Value Cell Spans
-        ('SPAN', (1,3), (3,3)),   # Father Name
-        ('SPAN', (1,10), (3,10)), # Address
-        ('SPAN', (1,15), (3,15)), # Nominee Address
-        ('SPAN', (1,22), (3,22)), # Flight Details
+        ('SPAN', (1,3), (3,3)),   
+        ('SPAN', (1,10), (3,10)), 
+        ('SPAN', (1,15), (3,15)), 
+        ('SPAN', (1,22), (3,22)), 
         
-        ('SPAN', (3,24), (3,26)), # Remarks Box
-        ('SPAN', (1,25), (2,25)), # Company Name
-        ('SPAN', (1,26), (2,26)), # Reference
+        ('SPAN', (3,24), (3,26)), 
+        ('SPAN', (1,25), (2,25)), 
+        ('SPAN', (1,26), (2,26)), 
 
-        # Grey Labels Alignment & Formatting
         ('BACKGROUND', (0,2), (0,11), label_bg), 
         ('BACKGROUND', (2,2), (2,2), label_bg),  
         ('BACKGROUND', (2,4), (2,9), label_bg),  
@@ -210,7 +202,7 @@ def create_pdf(fd):
         ('FONTNAME', (0,17), (0,22), 'Helvetica-Bold'),
         ('FONTNAME', (2,17), (2,21), 'Helvetica-Bold'),
         
-        ('FONTSIZE', (0,11), (0,11), 8), # Specific resize for 'Perform hajj in last 5 years'
+        ('FONTSIZE', (0,11), (0,11), 8), 
     ])
     
     table.setStyle(style)
@@ -424,8 +416,6 @@ with st.form("hajj_form"):
         remarks = st.text_area("Remarks", d.get('remarks', ''))
 
     st.markdown("---")
-    
-    # 🔴 BARA SUBMIT BUTTON
     submitted = st.form_submit_button("📄 GENERATE PREMIUM PDF", use_container_width=True)
 
 if submitted:
@@ -453,7 +443,6 @@ if submitted:
         
     st.success("🎉 PDF is ready! Click below to download your premium formatted document.")
     
-    # Clean Download Button
     st.download_button(
         label="📥 DOWNLOAD PDF NOW",
         data=pdf_bytes,
