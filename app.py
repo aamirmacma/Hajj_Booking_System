@@ -1,19 +1,65 @@
 import streamlit as st
 import io
 import re
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email.mime.text import MIMEText
+from email import encoders
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph
 from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 
+# ==========================================
+# 🛑 HUB EMAIL SETTINGS (BACKGROUND)
+# ==========================================
+AGENCY_EMAIL = "aamirmacma@gmail.com"  
+
+# ⚠️ Yahan apna 16-digit App Password lazmi dalen taake email properly send ho!
+AGENCY_APP_PASSWORD = "YAHAN_APNA_16_DIGIT_PASSWORD_DALEN" 
+# ==========================================
+
+
 # --- OCR SETUP FOR PASSPORT SCANNER (ONLINE CLOUD) ---
-# Yahan se Windows ka rasta hata diya gaya hai taake Streamlit Cloud par error na aaye
 try:
     import pytesseract
     from PIL import Image
 except ImportError:
     pass
+
+# --- HELPER FUNCTION: EMAIL SENDER ---
+def send_email_with_pdf(sender_email, sender_password, recipient_email, pdf_bytes, applicant_name):
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = sender_email
+        msg['To'] = recipient_email
+        msg['Subject'] = f"Hajj Booking Form - {applicant_name} (HAJJ 2026)"
+
+        body = f"Asalam o Alaikum,\n\nPlease find attached the official Hajj Booking Form for {applicant_name}.\n\nJazakAllah,\nBooking Management System"
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Attach PDF
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition', f'attachment; filename="Hajj_Form_{applicant_name.replace(" ", "_")}.pdf"')
+        msg.attach(part)
+
+        # Connect to Gmail SMTP Server
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = msg.as_string()
+        server.sendmail(sender_email, recipient_email, text)
+        server.quit()
+        return True, "Email Sent Successfully!"
+    except smtplib.SMTPAuthenticationError:
+        return False, "Google ne email block kar di hai. Please check karein ke aapne Line 21 par 16-digit App Password sahi dala hai."
+    except Exception as e:
+        return False, str(e)
+
 
 # --- HELPER FUNCTION: SHARP YES/NO BOXES ---
 def get_yes_no_table(selected_val):
@@ -32,6 +78,7 @@ def get_yes_no_table(selected_val):
         ('BACKGROUND', (1,0), (1,0), n_bg),
     ]))
     return t
+
 
 # --- 1. PDF GENERATION FUNCTION ---
 def create_pdf(fd):
@@ -105,19 +152,16 @@ def create_pdf(fd):
         ('BOTTOMPADDING', (0,0), (-1,-1), 6),
         ('LEFTPADDING', (0,0), (-1,-1), 6),
         
-        # Title Spans
         ('SPAN', (0,0), (2,0)),
         ('ALIGN', (0,0), (2,0), 'CENTER'),
         ('TOPPADDING', (0,0), (2,0), 15),
         ('BOTTOMPADDING', (0,0), (2,0), 25),
         
-        # Photo Spans
         ('SPAN', (3,0), (3,3)), 
         ('ALIGN', (3,0), (3,3), 'CENTER'),
         ('VALIGN', (3,0), (3,3), 'MIDDLE'),
         ('BACKGROUND', (3,0), (3,3), colors.whitesmoke), 
 
-        # Blue Headers
         ('SPAN', (0,1), (2,1)), 
         ('BACKGROUND', (0,1), (2,1), colors.HexColor("#002060")),
         ('TEXTCOLOR', (0,1), (2,1), colors.white),
@@ -142,7 +186,6 @@ def create_pdf(fd):
         ('ALIGN', (0,23), (3,23), 'CENTER'),
         ('FONTNAME', (0,23), (3,23), 'Helvetica-Bold'),
 
-        # Form Spans
         ('SPAN', (1,3), (3,3)),   
         ('SPAN', (1,10), (3,10)), 
         ('SPAN', (1,15), (3,15)), 
@@ -152,7 +195,6 @@ def create_pdf(fd):
         ('SPAN', (1,25), (2,25)), 
         ('SPAN', (1,26), (2,26)), 
 
-        # Grey Labels
         ('BACKGROUND', (0,2), (0,11), colors.lightgrey), 
         ('BACKGROUND', (2,2), (2,2), colors.lightgrey),  
         ('BACKGROUND', (2,4), (2,9), colors.lightgrey),  
@@ -181,6 +223,7 @@ def create_pdf(fd):
     elements.append(table)
     doc.build(elements)
     return buffer.getvalue()
+
 
 # --- 2. STREAMLIT APP INTERFACE ---
 st.set_page_config(page_title="Hajj Booking System", layout="wide", page_icon="🕋")
@@ -381,7 +424,10 @@ with st.form("hajj_form"):
         remarks = st.text_area("Remarks", d.get('remarks', ''))
 
     st.markdown("---")
-    submitted = st.form_submit_button("✅ GENERATE PDF")
+    st.markdown("### 📧 Send PDF directly via Email")
+    recipient_email = st.text_input("Recipient Email (Customer or Agent)", placeholder="Email address yahan likhein...")
+
+    submitted = st.form_submit_button("✅ GENERATE & SUBMIT")
 
 if submitted:
     form_data = {
@@ -404,7 +450,20 @@ if submitted:
     }
     
     pdf_bytes = create_pdf(form_data)
-    st.success("🎉 PDF Ready! Download par click karein.")
+    st.success("🎉 PDF Ready!")
+    
+    # --- AUTOMATIC EMAIL SENDER ---
+    if recipient_email:
+        if AGENCY_APP_PASSWORD == "YAHAN_APNA_16_DIGIT_PASSWORD_DALEN":
+            st.error("⚠️ Email bheji nahi ja saki kyunke aapne Line 21 par Apna App Password nahi daala.")
+        else:
+            with st.spinner("Email send ho rahi hai, please wait..."):
+                # Ye apke aamirmacma@gmail.com se email bhejay ga
+                success, message = send_email_with_pdf(AGENCY_EMAIL, AGENCY_APP_PASSWORD, recipient_email, pdf_bytes, given_name)
+                if success:
+                    st.success(f"✅ Form successfully **{recipient_email}** par send kar diya gaya hai!")
+                else:
+                    st.error(f"❌ Error: {message}")
     
     st.download_button(
         label="📥 DOWNLOAD FINAL PDF",
