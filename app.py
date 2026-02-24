@@ -1,75 +1,31 @@
 import streamlit as st
 import io
 import re
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email.mime.text import MIMEText
-from email import encoders
+from datetime import datetime
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Image as RLImage, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from io import BytesIO
 
-# ==========================================
-# 🛑 HUB EMAIL SETTINGS (BACKGROUND)
-# ==========================================
-AGENCY_EMAIL = "aamirmacma@gmail.com"  
-
-# Aapka bataya gaya password yahan set kar diya gaya hai
-AGENCY_APP_PASSWORD = "asdfghjklqwzxcvb" 
-# ==========================================
-
-
-# --- OCR SETUP FOR PASSPORT SCANNER (ONLINE CLOUD) ---
+# --- OCR SETUP FOR PASSPORT SCANNER ---
 try:
     import pytesseract
     from PIL import Image
 except ImportError:
     pass
 
-# --- HELPER FUNCTION: EMAIL SENDER ---
-def send_email_with_pdf(sender_email, sender_password, recipient_email, pdf_bytes, applicant_name):
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = recipient_email
-        msg['Subject'] = f"Hajj Booking Form - {applicant_name} (HAJJ 2026)"
-
-        body = f"Asalam o Alaikum,\n\nPlease find attached the official Hajj Booking Form for {applicant_name}.\n\nJazakAllah,\nBooking Management System"
-        msg.attach(MIMEText(body, 'plain'))
-
-        # Attach PDF
-        part = MIMEBase('application', 'octet-stream')
-        part.set_payload(pdf_bytes)
-        encoders.encode_base64(part)
-        part.add_header('Content-Disposition', f'attachment; filename="Hajj_Form_{applicant_name.replace(" ", "_")}.pdf"')
-        msg.attach(part)
-
-        # Connect to Gmail SMTP Server
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, recipient_email, text)
-        server.quit()
-        return True, "Email Sent Successfully!"
-    except smtplib.SMTPAuthenticationError:
-        return False, "Google ne email block kar di hai kyunke aapne aam password use kiya hai. Please Google Account se 16-letters wala App Password banayen."
-    except Exception as e:
-        return False, str(e)
-
-
-# --- HELPER FUNCTION: SHARP YES/NO BOXES ---
+# --- HELPER FUNCTION: MODERN YES/NO BOXES ---
 def get_yes_no_table(selected_val):
-    y_bg = colors.HexColor("#FFFF00") if selected_val == "YES" else colors.white
-    n_bg = colors.HexColor("#FFFF00") if selected_val == "NO" else colors.white
+    # Professional Gold Highlight for selections
+    y_bg = colors.HexColor("#FFC107") if selected_val == "YES" else colors.white
+    n_bg = colors.HexColor("#FFC107") if selected_val == "NO" else colors.white
     
-    t = Table([["YES", "NO"]], colWidths=[35, 35], rowHeights=[18])
+    t = Table([["YES", "NO"]], colWidths=[40, 40], rowHeights=[20])
     t.setStyle(TableStyle([
-        ('BOX', (0,0), (-1,-1), 1, colors.black),
-        ('INNERGRID', (0,0), (-1,-1), 1, colors.black),
+        ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#002060")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#002060")),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
@@ -79,16 +35,35 @@ def get_yes_no_table(selected_val):
     ]))
     return t
 
-
-# --- 1. PDF GENERATION FUNCTION ---
+# --- 1. PREMIUM PDF GENERATION FUNCTION ---
 def create_pdf(fd):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=20)
     elements = []
     styles = getSampleStyleSheet()
     
-    # Photo Box Handling
-    img = Paragraph("<para align='center'><font color='gray' size='10'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
+    # Custom Styles for Premium Look
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=26,
+        textColor=colors.HexColor("#002060"), # Royal Blue Title
+        alignment=TA_CENTER,
+        spaceAfter=5
+    )
+    subtitle_style = ParagraphStyle(
+        'CustomSubTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=14,
+        textColor=colors.black,
+        alignment=TA_CENTER,
+        spaceAfter=15
+    )
+    
+    # Photo Box Handling (Clean Dashed look)
+    img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
     if fd.get('photo'):
         try:
             img_bytes = fd['photo'].getvalue()
@@ -97,117 +72,135 @@ def create_pdf(fd):
         except Exception as e:
             pass
 
-    # Title Formatting
-    title_text = """<para align='center'>
-        <b><font size='24'>HAJJ BOOKING FORM</font></b><br/><br/>
-        <b><font size='16'>HAJJ 2026 - 1447 A.H</font></b><br/>
-    </para>"""
-    title_p = Paragraph(title_text, styles['Normal'])
+    title_p = Paragraph("HAJJ BOOKING FORM", title_style)
+    subtitle_p = Paragraph("HAJJ 2026 - 1447 A.H", subtitle_style)
+    
+    # Combine Title for row 0
+    header_content = [title_p, subtitle_p]
 
     full_name = f"{fd['app_title']}. {fd['given_name']}" if fd['app_title'] else fd['given_name']
 
     # --- PDF TABLE DATA STRUCTURE ---
     data = [
-        [title_p, "", "", img],
+        [header_content, "", "", img],
         ["HAJJ APPLICANT DETAILS", "", "", ""], 
-        ["SURNAME (AS PER PASSPORT)", fd['surname'], "TITLE & GIVEN NAME", full_name],
-        ["FATHER / HUSBAND NAME\n(AS PER PASSPORT)", fd['guardian'], "", ""],
+        ["SURNAME (AS PER PASSPORT)", fd['surname'].upper(), "TITLE & GIVEN NAME", full_name.upper()],
+        ["FATHER / HUSBAND NAME\n(AS PER PASSPORT)", fd['guardian'].upper(), "", ""],
         ["CNIC NO / NICOP", fd['cnic'], "BLOOD GROUP", fd['blood']],
-        ["DATE OF BIRTH", fd['dob'], "MARITAL STATUS", fd['marital']],
-        ["PASSPORT NO", fd['passport'], "MOBILE NO", fd['mobile']],
+        ["DATE OF BIRTH", fd['dob'], "MARITAL STATUS", fd['marital'].upper()],
+        ["PASSPORT NO", fd['passport'].upper(), "MOBILE NO", fd['mobile']],
         ["DATE OF ISSUE", fd['doi'], "WHATSAPP NO", fd['whatsapp']],
-        ["DATE OF EXPIRY", fd['doe'], "OCCUPATION", fd['job']],
-        ["EMAIL (Optional)", fd['email'], "COUNTRY STAY IN", fd['country']],
-        ["RESIDENT ADDRESS", fd['address'], "", ""],
+        ["DATE OF EXPIRY", fd['doe'], "OCCUPATION", fd['job'].upper()],
+        ["EMAIL (Optional)", fd['email'], "COUNTRY STAY IN", fd['country'].upper()],
+        ["RESIDENT ADDRESS", fd['address'].upper(), "", ""],
         ["PERFORM HAJJ IN LAST FIVE YEARS", get_yes_no_table(fd['hajj_5yr']), "HAJJ-E- BADAL", get_yes_no_table(fd['hajj_badal'])],
         
         ["NOMINEE IN CASE OF EMERGENCY (MUST BE ADULT/RELATIVE)", "", "", ""],
-        ["NAME OF NOMINEE", fd['nom_name'], "NOMINEE RELATION", fd['nom_rel']],
+        ["NAME OF NOMINEE", fd['nom_name'].upper(), "NOMINEE RELATION", fd['nom_rel'].upper()],
         ["CNIC (MANDATORY)", fd['nom_cnic'], "MOBILE/WHATSAPP", fd['nom_mobile']],
-        ["ADDRESS OF NOMINEE", fd['nom_address'], "", ""],
+        ["ADDRESS OF NOMINEE", fd['nom_address'].upper(), "", ""],
         
         ["HAJJ PACKAGE DETAILS", "", "", ""],
-        ["HAJJ PACKAGE NO.", fd['pkg_no'], "MAKTAB / CATEGORY", fd['maktab']],
-        ["MAKKAH HOTEL", fd['makkah_hotel'], "MAKKAH ROOM TYPE", fd['makkah_room_type']], 
-        ["MADINAH HOTEL", fd['madinah_hotel'], "MADINAH ROOM TYPE", fd['madinah_room_type']], 
-        ["AZIZIAH ROOM TYPE", fd['aziz_type'], "FLIGHT FROM", fd['flight_from']],             
+        ["HAJJ PACKAGE NO.", fd['pkg_no'], "MAKTAB / CATEGORY", fd['maktab'].upper()],
+        ["MAKKAH HOTEL", fd['makkah_hotel'].upper(), "MAKKAH ROOM TYPE", fd['makkah_room_type']], 
+        ["MADINAH HOTEL", fd['madinah_hotel'].upper(), "MADINAH ROOM TYPE", fd['madinah_room_type']], 
+        ["AZIZIAH ROOM TYPE", fd['aziz_type'], "FLIGHT FROM", fd['flight_from'].upper()],             
         ["QURBANI", fd['qurbani'], "TICKETS", get_yes_no_table(fd['tickets'])],               
-        ["FLIGHT DETAILS", fd['flight_details'], "", ""],
+        ["FLIGHT DETAILS", fd['flight_details'].upper(), "", ""],
         
         ["FOR OFFICIAL USE ONLY", "", "", ""],
         ["INVOICE NO:", fd['invoice'], "REMARKS", fd['remarks']],
-        ["COMPANY NAME", fd['company'], "", ""],
-        ["REFERENCE", fd['reference'], "", ""]
+        ["COMPANY NAME", fd['company'].upper(), "", ""],
+        ["REFERENCE", fd['reference'].upper(), "", ""]
     ]
 
     col_widths = [155, 135, 115, 140] 
     table = Table(data, colWidths=col_widths)
     
+    # Premium Color Palette
+    border_color = colors.HexColor("#002060") # Royal Blue Borders
+    header_bg = colors.HexColor("#002060")    # Royal Blue Headers
+    label_bg = colors.HexColor("#F0F2F6")     # Soft Modern Grey for labels
+    official_bg = colors.HexColor("#D4AF37")  # Premium Gold for Official Use
+    
     style = TableStyle([
-        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        # Main Grid Design
+        ('GRID', (0,0), (-1,-1), 1, border_color),
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,0), (-1,-1), 9),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 7),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
         
+        # Outer Thick Box for Premium feel
+        ('BOX', (0,0), (-1,-1), 2, border_color),
+        
+        # Title Row Spans
         ('SPAN', (0,0), (2,0)),
         ('ALIGN', (0,0), (2,0), 'CENTER'),
-        ('TOPPADDING', (0,0), (2,0), 15),
-        ('BOTTOMPADDING', (0,0), (2,0), 25),
+        ('VALIGN', (0,0), (2,0), 'MIDDLE'),
         
+        # Photo Spans
         ('SPAN', (3,0), (3,3)), 
         ('ALIGN', (3,0), (3,3), 'CENTER'),
         ('VALIGN', (3,0), (3,3), 'MIDDLE'),
         ('BACKGROUND', (3,0), (3,3), colors.whitesmoke), 
 
+        # Sub-Headers (Applicant, Nominee, Package, Official)
         ('SPAN', (0,1), (2,1)), 
-        ('BACKGROUND', (0,1), (2,1), colors.HexColor("#002060")),
+        ('BACKGROUND', (0,1), (2,1), header_bg),
         ('TEXTCOLOR', (0,1), (2,1), colors.white),
         ('ALIGN', (0,1), (2,1), 'CENTER'),
         ('FONTNAME', (0,1), (2,1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,1), (2,1), 10),
         
         ('SPAN', (0,12), (3,12)), 
-        ('BACKGROUND', (0,12), (3,12), colors.HexColor("#002060")),
+        ('BACKGROUND', (0,12), (3,12), header_bg),
         ('TEXTCOLOR', (0,12), (3,12), colors.white),
         ('ALIGN', (0,12), (3,12), 'CENTER'),
         ('FONTNAME', (0,12), (3,12), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,12), (3,12), 10),
 
         ('SPAN', (0,16), (3,16)), 
-        ('BACKGROUND', (0,16), (3,16), colors.HexColor("#002060")),
+        ('BACKGROUND', (0,16), (3,16), header_bg),
         ('TEXTCOLOR', (0,16), (3,16), colors.white),
         ('ALIGN', (0,16), (3,16), 'CENTER'),
         ('FONTNAME', (0,16), (3,16), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,16), (3,16), 10),
 
         ('SPAN', (0,23), (3,23)), 
-        ('BACKGROUND', (0,23), (3,23), colors.HexColor("#002060")),
+        ('BACKGROUND', (0,23), (3,23), header_bg),
         ('TEXTCOLOR', (0,23), (3,23), colors.white),
         ('ALIGN', (0,23), (3,23), 'CENTER'),
         ('FONTNAME', (0,23), (3,23), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,23), (3,23), 10),
 
-        ('SPAN', (1,3), (3,3)),   
-        ('SPAN', (1,10), (3,10)), 
-        ('SPAN', (1,15), (3,15)), 
-        ('SPAN', (1,22), (3,22)), 
+        # Value Cell Spans
+        ('SPAN', (1,3), (3,3)),   # Father Name
+        ('SPAN', (1,10), (3,10)), # Address
+        ('SPAN', (1,15), (3,15)), # Nominee Address
+        ('SPAN', (1,22), (3,22)), # Flight Details
         
-        ('SPAN', (3,24), (3,26)), 
-        ('SPAN', (1,25), (2,25)), 
-        ('SPAN', (1,26), (2,26)), 
+        ('SPAN', (3,24), (3,26)), # Remarks Box
+        ('SPAN', (1,25), (2,25)), # Company Name
+        ('SPAN', (1,26), (2,26)), # Reference
 
-        ('BACKGROUND', (0,2), (0,11), colors.lightgrey), 
-        ('BACKGROUND', (2,2), (2,2), colors.lightgrey),  
-        ('BACKGROUND', (2,4), (2,9), colors.lightgrey),  
-        ('BACKGROUND', (2,11), (2,11), colors.lightgrey),
+        # Grey Labels Alignment & Formatting
+        ('BACKGROUND', (0,2), (0,11), label_bg), 
+        ('BACKGROUND', (2,2), (2,2), label_bg),  
+        ('BACKGROUND', (2,4), (2,9), label_bg),  
+        ('BACKGROUND', (2,11), (2,11), label_bg),
         
-        ('BACKGROUND', (0,13), (0,15), colors.lightgrey), 
-        ('BACKGROUND', (2,13), (2,14), colors.lightgrey), 
+        ('BACKGROUND', (0,13), (0,15), label_bg), 
+        ('BACKGROUND', (2,13), (2,14), label_bg), 
         
-        ('BACKGROUND', (0,17), (0,22), colors.lightgrey), 
-        ('BACKGROUND', (2,17), (2,21), colors.lightgrey), 
+        ('BACKGROUND', (0,17), (0,22), label_bg), 
+        ('BACKGROUND', (2,17), (2,21), label_bg), 
         
-        ('BACKGROUND', (0,24), (0,26), colors.HexColor("#DAA520")), 
-        ('BACKGROUND', (2,24), (2,24), colors.HexColor("#DAA520")), 
+        ('BACKGROUND', (0,24), (0,26), official_bg), 
+        ('BACKGROUND', (2,24), (2,24), official_bg), 
         
         ('FONTNAME', (0,2), (0,11), 'Helvetica-Bold'),
         ('FONTNAME', (2,2), (2,2), 'Helvetica-Bold'), 
@@ -216,11 +209,19 @@ def create_pdf(fd):
         ('FONTNAME', (2,13), (2,14), 'Helvetica-Bold'),
         ('FONTNAME', (0,17), (0,22), 'Helvetica-Bold'),
         ('FONTNAME', (2,17), (2,21), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,11), (0,11), 8),
+        
+        ('FONTSIZE', (0,11), (0,11), 8), # Specific resize for 'Perform hajj in last 5 years'
     ])
     
     table.setStyle(style)
     elements.append(table)
+    
+    # --- FOOTER SECTION ---
+    elements.append(Spacer(1, 20))
+    footer_text = f"<i>Generated securely via Professional Booking Management System on {datetime.now().strftime('%d-%b-%Y')}</i>"
+    footer_p = Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], alignment=TA_RIGHT, textColor=colors.grey, fontSize=8))
+    elements.append(footer_p)
+
     doc.build(elements)
     return buffer.getvalue()
 
@@ -228,7 +229,11 @@ def create_pdf(fd):
 # --- 2. STREAMLIT APP INTERFACE ---
 st.set_page_config(page_title="Hajj Booking System", layout="wide", page_icon="🕋")
 
-st.markdown("<h1 style='text-align: center; color: #002060;'>🕋 HAJJ BOOKING MANAGEMENT SYSTEM</h1><hr>", unsafe_allow_html=True)
+st.markdown("""
+    <div style='background-color: #002060; padding: 15px; border-radius: 10px; margin-bottom: 20px;'>
+        <h1 style='text-align: center; color: white; margin: 0;'>🕋 HAJJ BOOKING MANAGEMENT SYSTEM</h1>
+    </div>
+""", unsafe_allow_html=True)
 
 st.sidebar.header("📂 Manage Records")
 form_choice = st.sidebar.selectbox("Select Applicant Data:", ["New Blank Form", "Korsar Rasul", "Imran Sheikh", "Mahira Faiz"])
@@ -246,24 +251,20 @@ if passport_scan:
             text = pytesseract.image_to_string(img_for_ocr)
             lines = text.split('\n')
             
-            # Extracting the MRZ part
             mrz_lines = [line.strip().replace(" ", "") for line in lines if '<' in line and len(line.strip()) > 20]
             
             if len(mrz_lines) >= 2:
                 line1 = mrz_lines[-2]
                 line2 = mrz_lines[-1] 
                 
-                # Fetch Names
                 if line1.startswith('P'):
                     parts = line1[5:].split('<<')
                     if len(parts) >= 2:
                         ocr_data['surname'] = parts[0].replace('<', ' ').strip()
                         ocr_data['given_name'] = parts[1].replace('<', ' ').strip()
                 
-                # Fetch Passport No, DOB, Gender, CNIC
                 if len(line2) >= 30:
                     ocr_data['passport'] = line2[0:9].replace('<', '')
-                    
                     dob_yy = line2[13:15]
                     dob_mm = line2[15:17]
                     dob_dd = line2[17:19]
@@ -285,7 +286,6 @@ if passport_scan:
                     if len(cnic) == 13 and cnic.isdigit():
                         ocr_data['cnic'] = f"{cnic[:5]}-{cnic[5:12]}-{cnic[12]}"
                         
-            # Regex for Date of Issue
             doi_match = re.search(r'(?:Date of Issue|DateofIssue).*?(\d{2})[\s/-]*([A-Za-z]{3})[\s/-]*(\d{4})', text, re.IGNORECASE)
             if doi_match:
                 ocr_data['doi'] = f"{doi_match.group(1)} {doi_match.group(2).upper()} {doi_match.group(3)}"
@@ -414,7 +414,7 @@ with st.form("hajj_form"):
     flight_details = st.text_area("Flight Details", d.get('flight_details', ''))
 
     st.markdown("---")
-    st.subheader("4. Official Use & Submission")
+    st.subheader("4. Official Use")
     o1, o2 = st.columns(2)
     with o1:
         invoice = st.text_input("Invoice No", d.get('invoice', ''))
@@ -424,10 +424,9 @@ with st.form("hajj_form"):
         remarks = st.text_area("Remarks", d.get('remarks', ''))
 
     st.markdown("---")
-    st.markdown("### 📧 Send PDF directly via Email")
-    recipient_email = st.text_input("Recipient Email (Customer or Agent)", placeholder="Email address yahan likhein...")
-
-    submitted = st.form_submit_button("✅ GENERATE & SUBMIT")
+    
+    # 🔴 BARA SUBMIT BUTTON
+    submitted = st.form_submit_button("📄 GENERATE PREMIUM PDF", use_container_width=True)
 
 if submitted:
     form_data = {
@@ -449,26 +448,16 @@ if submitted:
         'invoice': invoice, 'company': company, 'reference': reference, 'remarks': remarks
     }
     
-    pdf_bytes = create_pdf(form_data)
-    st.success("🎉 PDF Ready!")
+    with st.spinner('Preparing Professional PDF...'):
+        pdf_bytes = create_pdf(form_data)
+        
+    st.success("🎉 PDF is ready! Click below to download your premium formatted document.")
     
-    # --- AUTOMATIC EMAIL SENDER ---
-    if recipient_email:
-        if AGENCY_APP_PASSWORD == "YAHAN_APNA_16_DIGIT_PASSWORD_DALEN" or "chhipa" in AGENCY_APP_PASSWORD.lower():
-            st.error("⚠️ Email bheji nahi ja saki kyunke aapne aam password use kiya hai. Please Google Account se 16-letters wala App Password banayen.")
-        else:
-            with st.spinner("Email send ho rahi hai, please wait..."):
-                # Ye apke aamirmacma@gmail.com se email bhejay ga
-                success, message = send_email_with_pdf(AGENCY_EMAIL, AGENCY_APP_PASSWORD, recipient_email, pdf_bytes, given_name)
-                if success:
-                    st.success(f"✅ Form successfully **{recipient_email}** par send kar diya gaya hai!")
-                else:
-                    st.error(f"❌ Error: {message}")
-    
+    # Clean Download Button
     st.download_button(
-        label="📥 DOWNLOAD FINAL PDF",
+        label="📥 DOWNLOAD PDF NOW",
         data=pdf_bytes,
-        file_name=f"Hajj_Form_{surname}_{given_name}.pdf",
-        mime="application/pdf"
+        file_name=f"Hajj_Booking_{surname}_{given_name}.pdf",
+        mime="application/pdf",
+        use_container_width=True
     )
-
