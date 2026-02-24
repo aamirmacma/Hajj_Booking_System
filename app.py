@@ -18,7 +18,7 @@ from io import BytesIO
 AGENCY_EMAIL = "aamirmacma@gmail.com"  
 
 # Aapka bataya gaya password yahan set kar diya gaya hai
-AGENCY_APP_PASSWORD = "chhipa2008@#$%&@@@" 
+AGENCY_APP_PASSWORD = "asdfghjklqwzxcvb" 
 # ==========================================
 
 
@@ -471,3 +471,4 @@ if submitted:
         file_name=f"Hajj_Form_{surname}_{given_name}.pdf",
         mime="application/pdf"
     )
+
