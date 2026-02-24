@@ -21,7 +21,8 @@ def get_yes_no_table(selected_val):
     y_bg = colors.HexColor("#FFC107") if selected_val == "YES" else colors.white
     n_bg = colors.HexColor("#FFC107") if selected_val == "NO" else colors.white
     
-    t = Table([["YES", "NO"]], colWidths=[40, 40], rowHeights=[20])
+    # Row height reduced from 20 to 16 to save space
+    t = Table([["YES", "NO"]], colWidths=[40, 40], rowHeights=[16])
     t.setStyle(TableStyle([
         ('BOX', (0,0), (-1,-1), 0.5, colors.HexColor("#002060")),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#002060")),
@@ -37,7 +38,8 @@ def get_yes_no_table(selected_val):
 # --- 1. PREMIUM PDF GENERATION FUNCTION ---
 def create_pdf(fd):
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=20)
+    # 🔴 FIX 1: Margins top aur bottom se kam kar diye taake extra jagah mil jaye
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=15, bottomMargin=15)
     elements = []
     styles = getSampleStyleSheet()
     
@@ -46,10 +48,10 @@ def create_pdf(fd):
         parent=styles['Normal'],
         fontName='Helvetica-Bold',
         fontSize=24,
-        leading=28,
+        leading=26,
         textColor=colors.HexColor("#002060"), 
         alignment=TA_CENTER,
-        spaceAfter=12
+        spaceAfter=8 # Spacing reduced
     )
     subtitle_style = ParagraphStyle(
         'CustomSubTitle',
@@ -59,16 +61,17 @@ def create_pdf(fd):
         leading=16,
         textColor=colors.black,
         alignment=TA_CENTER,
-        spaceAfter=15
+        spaceAfter=10 # Spacing reduced
     )
     
-    # 🔴 FIX: Photo Byte Reading (Direct Streamlit Method)
     img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
-    if fd.get('photo'):
+    if fd.get('photo') is not None:
         try:
-            img_bytes = fd['photo'].getvalue() # getvalue() is robust for Streamlit uploads
+            fd['photo'].seek(0) 
+            img_bytes = fd['photo'].read()
             img_io = io.BytesIO(img_bytes)
-            img = RLImage(img_io, width=128, height=158)
+            # Photo size adjusted perfectly to fit height
+            img = RLImage(img_io, width=125, height=145) 
         except Exception as e:
             pass
 
@@ -76,12 +79,11 @@ def create_pdf(fd):
     subtitle_p = Paragraph("HAJJ 2026 - 1447 A.H", subtitle_style)
     
     header_content = [title_p, subtitle_p]
-
     full_name = f"{fd['app_title']}. {fd['given_name']}" if fd['app_title'] else fd['given_name']
 
     # --- PDF TABLE DATA STRUCTURE ---
     data = [
-        [header_content, "", "", img],
+        [header_content, "", "", img], 
         ["HAJJ APPLICANT DETAILS", "", "", ""], 
         ["SURNAME (AS PER PASSPORT)", fd['surname'].upper(), "TITLE & GIVEN NAME", full_name.upper()],
         ["FATHER / HUSBAND NAME\n(AS PER PASSPORT)", fd['guardian'].upper(), "", ""],
@@ -126,8 +128,9 @@ def create_pdf(fd):
         ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
         ('FONTSIZE', (0,0), (-1,-1), 9),
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('TOPPADDING', (0,0), (-1,-1), 7),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 7),
+        # 🔴 FIX 2: Vertical padding reduced from 7 to 4 taake sab aik page pe aye
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
         
@@ -207,7 +210,8 @@ def create_pdf(fd):
     table.setStyle(style)
     elements.append(table)
     
-    elements.append(Spacer(1, 20))
+    # Footer gap reduced
+    elements.append(Spacer(1, 10))
     footer_text = f"<i>Generated securely via Professional Booking Management System on {datetime.now().strftime('%d-%b-%Y')}</i>"
     footer_p = Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], alignment=TA_RIGHT, textColor=colors.grey, fontSize=8))
     elements.append(footer_p)
@@ -228,7 +232,7 @@ st.markdown("""
 st.sidebar.header("📂 Manage Records")
 form_choice = st.sidebar.selectbox("Select Applicant Data:", ["New Blank Form", "Korsar Rasul", "Imran Sheikh", "Mahira Faiz"])
 
-# 🔴 FIX 3: Placed Scanner AND Photo Upload OUTSIDE the form for LIVE PREVIEW
+# --- PASSPORT SCANNER & PHOTO ---
 col_scan, col_photo = st.columns(2)
 
 with col_scan:
@@ -239,7 +243,6 @@ with col_photo:
     st.markdown("### 📸 2. Upload Photo (For Form)")
     uploaded_photo = st.file_uploader("Upload Applicant Photo", type=["jpg", "jpeg", "png"], key="photo")
     if uploaded_photo:
-        # LIVE PREVIEW HERE!
         st.image(uploaded_photo, width=120, caption="Preview Generated")
 
 ocr_data = {}
@@ -289,12 +292,12 @@ if passport_scan:
             if doi_match:
                 ocr_data['doi'] = f"{doi_match.group(1)} {doi_match.group(2).upper()} {doi_match.group(3)}"
 
-            if ocr_data: st.success(f"✅ Data 100% Extracted! Welcome {ocr_data.get('title', '')} {ocr_data.get('surname', '')}")
-            else: st.warning("⚠️ Passport MRZ clear read nahi hua.")
+            if ocr_data: st.success(f"✅ Data Extracted! Welcome {ocr_data.get('title', '')} {ocr_data.get('surname', '')}")
                 
     except Exception as e:
         pass
 
+# --- PRESETS & DROPDOWNS ---
 presets = {
     "New Blank Form": {k: "" for k in ['surname','given_name','guardian','cnic','blood','dob','marital','passport','mobile','doi','whatsapp','doe','job','email','country','address','hajj_5yr','hajj_badal','nom_name','nom_rel','nom_cnic','nom_mobile','nom_address','pkg_no','maktab','makkah_hotel','makkah_room_type','madinah_hotel','madinah_room_type','flight_from','aziz_type','tickets', 'qurbani', 'flight_details','invoice','remarks','company','reference']},
     "Korsar Rasul": {'surname': "RASUL", 'given_name': "KORSAR", 'guardian': "ABID HUSSAIN", 'cnic': "9140001304292", 'blood': "A+", 'dob': "7/16/1978", 'marital': "Married", 'passport': "AS456321", 'mobile': "03008912129", 'doi': "7/16/2015", 'whatsapp': "03008912129", 'doe': "7/16/2030", 'job': "AHMED", 'email': "", 'country': "United Kingdom", 'address': "23 Malmesbury Road, Birmingham, West Midlands, B10 0JG United Kingdom", 'hajj_5yr': "NO", 'hajj_badal': "NO", 'nom_name': "UMER AYAZ", 'nom_rel': "COUSIN", 'nom_cnic': "8130108651631", 'nom_mobile': "923474374778", 'nom_address': "", 'pkg_no': "Package # 05 (17 DAYS)", 'maktab': "", 'makkah_hotel': "", 'makkah_room_type': "DOUBLE", 'madinah_hotel': "", 'madinah_room_type': "DOUBLE", 'flight_from': "", 'aziz_type': "DOUBLE", 'tickets': "YES", 'qurbani': "INCLUDE", 'flight_details': "", 'invoice': "", 'remarks': "", 'company': "", 'reference': ""},
