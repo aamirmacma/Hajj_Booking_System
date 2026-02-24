@@ -37,7 +37,6 @@ def get_yes_no_table(selected_val):
 # --- 1. PREMIUM PDF GENERATION FUNCTION ---
 def create_pdf(fd):
     buffer = BytesIO()
-    # Margins slightly adjusted
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=20, leftMargin=20, topMargin=25, bottomMargin=20)
     elements = []
     styles = getSampleStyleSheet()
@@ -63,15 +62,13 @@ def create_pdf(fd):
         spaceAfter=15
     )
     
-    # --- 🔴 FIX 1: PHOTO ADJUSTMENT ---
-    # Photo ka size barha diya gaya hai taake box mein pora fit ho.
+    # 🔴 FIX: Photo Byte Reading (Direct Streamlit Method)
     img = Paragraph("<para align='center'><font color='#555555' size='9'><br/><br/><br/><br/><b>AFFIX<br/>PASSPORT SIZE<br/>PHOTO HERE</b></font></para>", styles['Normal'])
     if fd.get('photo'):
         try:
-            img_bytes = fd['photo'].getvalue()
+            img_bytes = fd['photo'].getvalue() # getvalue() is robust for Streamlit uploads
             img_io = io.BytesIO(img_bytes)
-            # Width aur Height ko adjust kiya gaya hai box fill karne ke liye
-            img = RLImage(img_io, width=128, height=158) 
+            img = RLImage(img_io, width=128, height=158)
         except Exception as e:
             pass
 
@@ -116,10 +113,6 @@ def create_pdf(fd):
         ["REFERENCE", fd['reference'].upper(), "", ""]
     ]
 
-    # --- 🔴 FIX 2: COLUMN WIDTH ADJUSTMENT ---
-    # 3rd column (TITLE & GIVEN NAME) ki width 115 se barha kar 135 kar di gayi hai.
-    # Baaki columns ko thora adjust kiya hai taake total width same rahe.
-    # Old: [155, 135, 115, 140]
     col_widths = [150, 130, 135, 130] 
     table = Table(data, colWidths=col_widths)
     
@@ -144,17 +137,17 @@ def create_pdf(fd):
         ('ALIGN', (0,0), (2,0), 'CENTER'),
         ('VALIGN', (0,0), (2,0), 'MIDDLE'),
         
-        ('SPAN', (3,0), (3,3)), 
-        ('ALIGN', (3,0), (3,3), 'CENTER'),
-        ('VALIGN', (3,0), (3,3), 'MIDDLE'),
-        ('BACKGROUND', (3,0), (3,3), colors.whitesmoke), 
+        ('SPAN', (3,0), (3,0)), 
+        ('ALIGN', (3,0), (3,0), 'CENTER'),
+        ('VALIGN', (3,0), (3,0), 'MIDDLE'),
+        ('BACKGROUND', (3,0), (3,0), colors.whitesmoke), 
 
-        ('SPAN', (0,1), (2,1)), 
-        ('BACKGROUND', (0,1), (2,1), header_bg),
-        ('TEXTCOLOR', (0,1), (2,1), colors.white),
-        ('ALIGN', (0,1), (2,1), 'CENTER'),
-        ('FONTNAME', (0,1), (2,1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0,1), (2,1), 10),
+        ('SPAN', (0,1), (3,1)), 
+        ('BACKGROUND', (0,1), (3,1), header_bg),
+        ('TEXTCOLOR', (0,1), (3,1), colors.white),
+        ('ALIGN', (0,1), (3,1), 'CENTER'),
+        ('FONTNAME', (0,1), (3,1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,1), (3,1), 10),
         
         ('SPAN', (0,12), (3,12)), 
         ('BACKGROUND', (0,12), (3,12), header_bg),
@@ -214,7 +207,6 @@ def create_pdf(fd):
     table.setStyle(style)
     elements.append(table)
     
-    # --- FOOTER SECTION ---
     elements.append(Spacer(1, 20))
     footer_text = f"<i>Generated securely via Professional Booking Management System on {datetime.now().strftime('%d-%b-%Y')}</i>"
     footer_p = Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], alignment=TA_RIGHT, textColor=colors.grey, fontSize=8))
@@ -236,10 +228,19 @@ st.markdown("""
 st.sidebar.header("📂 Manage Records")
 form_choice = st.sidebar.selectbox("Select Applicant Data:", ["New Blank Form", "Korsar Rasul", "Imran Sheikh", "Mahira Faiz"])
 
-# --- PASSPORT SCANNER (MRZ) ---
-st.markdown("### 🛂 Auto-Fill from Passport (MRZ Scanner)")
-st.info("💡 Passport ki clear picture upload karein. System 'Surname', 'Given Name', 'Title', 'CNIC', 'DOB' aur 'Passport No' automatically fill kar dega.")
-passport_scan = st.file_uploader("Upload Passport Image (JPG/PNG)", type=["jpg", "jpeg", "png"], key="scanner")
+# 🔴 FIX 3: Placed Scanner AND Photo Upload OUTSIDE the form for LIVE PREVIEW
+col_scan, col_photo = st.columns(2)
+
+with col_scan:
+    st.markdown("### 🛂 1. Auto-Fill (Scanner)")
+    passport_scan = st.file_uploader("Upload Passport (JPG/PNG)", type=["jpg", "jpeg", "png"], key="scanner")
+
+with col_photo:
+    st.markdown("### 📸 2. Upload Photo (For Form)")
+    uploaded_photo = st.file_uploader("Upload Applicant Photo", type=["jpg", "jpeg", "png"], key="photo")
+    if uploaded_photo:
+        # LIVE PREVIEW HERE!
+        st.image(uploaded_photo, width=120, caption="Preview Generated")
 
 ocr_data = {}
 if passport_scan:
@@ -289,12 +290,11 @@ if passport_scan:
                 ocr_data['doi'] = f"{doi_match.group(1)} {doi_match.group(2).upper()} {doi_match.group(3)}"
 
             if ocr_data: st.success(f"✅ Data 100% Extracted! Welcome {ocr_data.get('title', '')} {ocr_data.get('surname', '')}")
-            else: st.warning("⚠️ Passport MRZ clear read nahi hua. Please saaf tasveer upload karein.")
+            else: st.warning("⚠️ Passport MRZ clear read nahi hua.")
                 
     except Exception as e:
-        st.error("⚠️ Scanner Error: System OCR ko theek se nahi parh pa raha. Tesseract file missing ho sakti hai.")
+        pass
 
-# --- PRESETS & DROPDOWNS ---
 presets = {
     "New Blank Form": {k: "" for k in ['surname','given_name','guardian','cnic','blood','dob','marital','passport','mobile','doi','whatsapp','doe','job','email','country','address','hajj_5yr','hajj_badal','nom_name','nom_rel','nom_cnic','nom_mobile','nom_address','pkg_no','maktab','makkah_hotel','makkah_room_type','madinah_hotel','madinah_room_type','flight_from','aziz_type','tickets', 'qurbani', 'flight_details','invoice','remarks','company','reference']},
     "Korsar Rasul": {'surname': "RASUL", 'given_name': "KORSAR", 'guardian': "ABID HUSSAIN", 'cnic': "9140001304292", 'blood': "A+", 'dob': "7/16/1978", 'marital': "Married", 'passport': "AS456321", 'mobile': "03008912129", 'doi': "7/16/2015", 'whatsapp': "03008912129", 'doe': "7/16/2030", 'job': "AHMED", 'email': "", 'country': "United Kingdom", 'address': "23 Malmesbury Road, Birmingham, West Midlands, B10 0JG United Kingdom", 'hajj_5yr': "NO", 'hajj_badal': "NO", 'nom_name': "UMER AYAZ", 'nom_rel': "COUSIN", 'nom_cnic': "8130108651631", 'nom_mobile': "923474374778", 'nom_address': "", 'pkg_no': "Package # 05 (17 DAYS)", 'maktab': "", 'makkah_hotel': "", 'makkah_room_type': "DOUBLE", 'madinah_hotel': "", 'madinah_room_type': "DOUBLE", 'flight_from': "", 'aziz_type': "DOUBLE", 'tickets': "YES", 'qurbani': "INCLUDE", 'flight_details': "", 'invoice': "", 'remarks': "", 'company': "", 'reference': ""},
@@ -305,15 +305,7 @@ presets = {
 d = presets[form_choice]
 
 blood_list = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
-country_list = [
-    "", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", 
-    "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "China", "Denmark", 
-    "Egypt", "Finland", "France", "Germany", "Greece", "India", "Indonesia", "Iran", "Iraq", "Ireland", 
-    "Italy", "Japan", "Jordan", "Kuwait", "Lebanon", "Malaysia", "Maldives", "Morocco", "Netherlands", 
-    "New Zealand", "Norway", "Oman", "Pakistan", "Palestine", "Qatar", "Russia", "Saudi Arabia", 
-    "Singapore", "South Africa", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Syria", "Turkey", 
-    "United Arab Emirates", "United Kingdom", "USA", "Yemen", "Other"
-]
+country_list = ["", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahrain", "Bangladesh", "Belgium", "Brazil", "Canada", "China", "Denmark", "Egypt", "Finland", "France", "Germany", "Greece", "India", "Indonesia", "Iran", "Iraq", "Ireland", "Italy", "Japan", "Jordan", "Kuwait", "Lebanon", "Malaysia", "Maldives", "Morocco", "Netherlands", "New Zealand", "Norway", "Oman", "Pakistan", "Palestine", "Qatar", "Russia", "Saudi Arabia", "Singapore", "South Africa", "Spain", "Sri Lanka", "Sweden", "Switzerland", "Syria", "Turkey", "United Arab Emirates", "United Kingdom", "USA", "Yemen", "Other"]
 marital_list = ["Single", "Married", "Widowed", "Divorced"]
 package_list = ["", "Package # 01 (10/11 Days)", "Package # 02 (13/14 Days)", "Package # 03 (13/14 DAYS)", "Package # 04 (17/18 DAYS)", "Package # 05 (17 DAYS)", "Package # 06 (22 DAYS)", "Package # 07 (14 DAYS)", "Package # 08 (14 DAYS)"]
 title_list = ["MR", "MRS", "MS", "CHILD", "INF"]
@@ -330,13 +322,7 @@ pkg_index = next((i for i, pkg in enumerate(package_list) if d.get('pkg_no', '')
 st.markdown("---")
 
 with st.form("hajj_form"):
-    c_photo1, c_photo2 = st.columns([3, 1])
-    with c_photo1:
-        st.subheader("1. Applicant Details")
-    with c_photo2:
-        st.markdown("**📸 Photo Upload (Form Header)**")
-        uploaded_photo = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
-        if uploaded_photo: st.image(uploaded_photo, width=110, caption="Preview")
+    st.subheader("📝 3. Applicant Details")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -447,7 +433,7 @@ if submitted:
     with st.spinner('Preparing Professional PDF...'):
         pdf_bytes = create_pdf(form_data)
         
-    st.success("🎉 PDF is ready! Click below to download your premium formatted document.")
+    st.success("🎉 PDF is ready! Niche button se download karein.")
     
     st.download_button(
         label="📥 DOWNLOAD PDF NOW",
