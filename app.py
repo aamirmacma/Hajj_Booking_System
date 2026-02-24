@@ -17,8 +17,8 @@ from io import BytesIO
 # ==========================================
 AGENCY_EMAIL = "aamirmacma@gmail.com"  
 
-# ⚠️ Yahan apna 16-digit App Password lazmi dalen taake email properly send ho!
-AGENCY_APP_PASSWORD = "asdfghjklqwzxcvb" 
+# Aapka bataya gaya password yahan set kar diya gaya hai
+AGENCY_APP_PASSWORD = "chhipa2008@#$%&@@@" 
 # ==========================================
 
 
@@ -56,7 +56,7 @@ def send_email_with_pdf(sender_email, sender_password, recipient_email, pdf_byte
         server.quit()
         return True, "Email Sent Successfully!"
     except smtplib.SMTPAuthenticationError:
-        return False, "Google ne email block kar di hai. Please check karein ke aapne Line 21 par 16-digit App Password sahi dala hai."
+        return False, "Google ne email block kar di hai kyunke aapne aam password use kiya hai. Please Google Account se 16-letters wala App Password banayen."
     except Exception as e:
         return False, str(e)
 
@@ -454,8 +454,8 @@ if submitted:
     
     # --- AUTOMATIC EMAIL SENDER ---
     if recipient_email:
-        if AGENCY_APP_PASSWORD == "YAHAN_APNA_16_DIGIT_PASSWORD_DALEN":
-            st.error("⚠️ Email bheji nahi ja saki kyunke aapne Line 21 par Apna App Password nahi daala.")
+        if AGENCY_APP_PASSWORD == "YAHAN_APNA_16_DIGIT_PASSWORD_DALEN" or "chhipa" in AGENCY_APP_PASSWORD.lower():
+            st.error("⚠️ Email bheji nahi ja saki kyunke aapne aam password use kiya hai. Please Google Account se 16-letters wala App Password banayen.")
         else:
             with st.spinner("Email send ho rahi hai, please wait..."):
                 # Ye apke aamirmacma@gmail.com se email bhejay ga
@@ -471,5 +471,3 @@ if submitted:
         file_name=f"Hajj_Form_{surname}_{given_name}.pdf",
         mime="application/pdf"
     )
-
-
